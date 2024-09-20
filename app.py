@@ -29,6 +29,6 @@ def server(input, output, session):
 # Create the Shiny app object
 app = App(app_ui, server)
 
-# Run the app, bind to all interfaces
+# Run the app on the default local server
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    app.run()
