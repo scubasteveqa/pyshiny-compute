@@ -10,8 +10,8 @@ app_ui = ui.page_fluid(
 
 # Define server logic
 def server(input, output, session):
+    # Periodically update system stats using reactive polling
     @reactive.Effect
-    @reactive.event(input)
     def monitor_system():
         # Get CPU usage
         cpu_percent = psutil.cpu_percent(interval=1)
