@@ -1,30 +1,31 @@
 import psutil
 from shiny import App, ui, render, reactive
 
-# Define the user interface
+# Define the user interface (UI)
 app_ui = ui.page_fluid(
     ui.h2("Server CPU and Memory Usage"),
-    ui.output_text_verbatim("cpu_usage"),
-    ui.output_text_verbatim("memory_usage")
+    ui.output_text_verbatim("cpu_usage"),  # Output for CPU usage
+    ui.output_text_verbatim("memory_usage")  # Output for memory usage
 )
 
 # Define server logic
 def server(input, output, session):
-    # Periodically update system stats using reactive polling
-    @reactive.Effect
-    def monitor_system():
-        # Get CPU usage
+    # Define output for CPU usage
+    @output
+    @render.text
+    def cpu_usage():
         cpu_percent = psutil.cpu_percent(interval=1)
-
-        # Get memory information
+        return f"CPU Usage: {cpu_percent}%"
+    
+    # Define output for memory usage
+    @output
+    @render.text
+    def memory_usage():
         memory_info = psutil.virtual_memory()
         available_memory_gb = memory_info.available / (1024 ** 3)  # Convert to GB
         total_memory_gb = memory_info.total / (1024 ** 3)  # Convert to GB
         memory_percent = memory_info.percent
-
-        # Update the text outputs
-        output.cpu_usage.set_text(f"CPU Usage: {cpu_percent}%")
-        output.memory_usage.set_text(f"Memory Usage: {memory_percent}% - Available: {available_memory_gb:.2f} GB / Total: {total_memory_gb:.2f} GB")
+        return f"Memory Usage: {memory_percent}% - Available: {available_memory_gb:.2f} GB / Total: {total_memory_gb:.2f} GB"
 
 # Create the Shiny app object
 app = App(app_ui, server)
