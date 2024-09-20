@@ -5,7 +5,8 @@ from shiny import App, ui, render, reactive
 app_ui = ui.page_fluid(
     ui.h2("Server CPU and Memory Usage"),
     ui.output_text_verbatim("cpu_usage"),  # Output for CPU usage
-    ui.output_text_verbatim("memory_usage")  # Output for memory usage
+    ui.output_text_verbatim("memory_usage"),  # Output for memory usage
+    ui.output_text_verbatim("cpu_cores")  # Output for CPU cores
 )
 
 # Define server logic
@@ -26,6 +27,14 @@ def server(input, output, session):
         total_memory_gb = memory_info.total / (1024 ** 3)  # Convert to GB
         memory_percent = memory_info.percent
         return f"Memory Usage: {memory_percent}% - Available: {available_memory_gb:.2f} GB / Total: {total_memory_gb:.2f} GB"
+    
+    # Define output for CPU core count
+    @output
+    @render.text
+    def cpu_cores():
+        physical_cores = psutil.cpu_count(logical=False)
+        logical_cores = psutil.cpu_count(logical=True)
+        return f"CPU Cores: {physical_cores} Physical, {logical_cores} Logical (Threads)"
 
 # Create the Shiny app object
 app = App(app_ui, server)
