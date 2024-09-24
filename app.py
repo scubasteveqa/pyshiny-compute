@@ -1,44 +1,69 @@
+import multiprocessing
+import pandas as pd
+import platform
 import psutil
-from shiny import App, ui, render, reactive
+import subprocess
+import sys
 
-# Define the user interface (UI)
+from shiny import App, reactive, render, ui
+
 app_ui = ui.page_fluid(
-    ui.h2("Server CPU and Memory Usage"),
-    ui.output_text_verbatim("cpu_usage"),  # Output for CPU usage
-    ui.output_text_verbatim("memory_usage"),  # Output for memory usage
-    ui.output_text_verbatim("cpu_cores")  # Output for CPU cores
+    ui.h2("System details:"),
+    ui.output_table("system"),
+    ui.input_text_area("cmd", "Command to run", placeholder="Enter text"),
+    ui.output_text_verbatim("cmd_output"),
+    ui.input_text_area("logme", "Text to log", placeholder="Enter text"),
+    ui.input_checkbox("stderr", "log to stderr", False),
+    ui.input_action_button("log_button", "Log"),
+    ui.output_text_verbatim("logged"),
 )
 
-# Define server logic
-def server(input, output, session):
-    # Define output for CPU usage
-    @output
-    @render.text
-    def cpu_usage():
-        cpu_percent = psutil.cpu_percent(interval=1)
-        return f"CPU Usage: {cpu_percent}%"
-    
-    # Define output for memory usage
-    @output
-    @render.text
-    def memory_usage():
-        memory_info = psutil.virtual_memory()
-        available_memory_gb = memory_info.available / (1024 ** 3)  # Convert to GB
-        total_memory_gb = memory_info.total / (1024 ** 3)  # Convert to GB
-        memory_percent = memory_info.percent
-        return f"Memory Usage: {memory_percent}% - Available: {available_memory_gb:.2f} GB / Total: {total_memory_gb:.2f} GB"
-    
-    # Define output for CPU core count
-    @output
-    @render.text
-    def cpu_cores():
-        physical_cores = psutil.cpu_count(logical=False)
-        logical_cores = psutil.cpu_count(logical=True)
-        return f"CPU Cores: {physical_cores} Physical, {logical_cores} Logical (Threads)"
 
-# Create the Shiny app object
+def server(input, output, session):
+    @output
+    @render.table
+    def system():
+        host_total = psutil.virtual_memory().total
+        host_mem = f"{int(host_total / 1024 / 1024 / 1024)} GiB ({host_total} bytes)"
+        cpu_max = run(["cat", "/sys/fs/cgroup/cpu.max"])
+        parts = cpu_max.split()
+        if len(parts) == 2:
+            cpu_limit = int(parts[0]) / int(parts[1])
+        else:
+            cpu_limit = cpu_max
+        memory_max=int(run(["cat", "/sys/fs/cgroup/memory.max"]))
+        pod_mem = f"{int(memory_max / 1024 / 1024 / 1024)} GiB ({memory_max} bytes)"
+        return pd.DataFrame([
+            {"name":"python version","value":platform.python_version()},
+            {"name":"host cpu count","value":multiprocessing.cpu_count()},
+            {"name":"host memory","value":host_mem},
+            {"name":"cpu limit","value":cpu_limit},
+            {"name":"memory limit","value":pod_mem},
+        ])
+
+    @output
+    @render.text
+    def cmd_output():
+        cmd=input.cmd()
+        try:
+            return subprocess.check_output(cmd, shell=True).decode()
+        except Exception as e:
+            return f"Error: {e}"
+
+    @render.text()
+    @reactive.event(input.log_button)
+    def logged():
+        l = input.logme()
+        if input.stderr():
+            print(l, file=sys.stderr)
+        else:
+            print(l)
+        return l
+
 app = App(app_ui, server)
 
-# Run the app on the default local server
-if __name__ == "__main__":
-    app.run()
+def run(input: list[str]) -> str:
+    try:
+        return subprocess.check_output(input).decode("utf-8").strip()
+    except Exception as e:
+        return f"Error: {e}"
