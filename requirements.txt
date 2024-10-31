@@ -1,4 +1,4 @@
-jinja2==3.1.4
-pandas==2.2.3
-psutil==6.0.0
-shiny==1.1.0
+jinja2
+pandas
+psutil
+shiny
